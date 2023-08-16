@@ -18,4 +18,16 @@ public class User {
     @Basic
     @Column(name="password")
     private String password;
+    @Basic
+    @Column(name="private_key")
+    private String privateKey;
+    @Basic
+    @Column(name="public_key")
+    private String publicKey;
+    @Basic
+    @Column(name="private_key_pem")
+    private String privateKeyPem;
+    @Basic
+    @Column(name="public_key_pem")
+    private String publicKeyPem;
 }
