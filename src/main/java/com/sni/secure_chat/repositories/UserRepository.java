@@ -15,4 +15,6 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 
     @Query("SELECT u.privateKey from User u where u.userId = :userId")
     String getPrivateKeyByUserId(Integer userId);
+
+    Optional<User> findByUserName(String userName);
 }

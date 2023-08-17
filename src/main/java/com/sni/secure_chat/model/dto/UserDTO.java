@@ -7,4 +7,6 @@ import lombok.NoArgsConstructor;
 @Data
 public class UserDTO {
     private Integer userId;
+    private String userName;
+    private String password;
 }

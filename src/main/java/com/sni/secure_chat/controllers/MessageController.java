@@ -11,6 +11,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/messages")
+@CrossOrigin(origins = "http://localhost:4200", allowCredentials ="true" )
 public class MessageController {
     private final MessageService messageService;
 
