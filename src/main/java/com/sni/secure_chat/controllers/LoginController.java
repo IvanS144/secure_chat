@@ -53,7 +53,7 @@ public class LoginController {
         );
         UserDTO u = userService.findUserByUserName(loginRequest.getUserName());
         String JWT = jwtService.generateToken(u);
-        ResponseCookie cookie = ResponseCookie.from("auth-cookie", JWT).secure(false).httpOnly(true).maxAge(3600).build();
+        ResponseCookie cookie = ResponseCookie.from("auth-cookie", JWT).secure(false).httpOnly(true).maxAge(3600).path("/").build();
         return ResponseEntity.status(HttpStatus.OK).header(HttpHeaders.SET_COOKIE, cookie.toString()).body(u);
     }
 }

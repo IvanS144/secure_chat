@@ -149,4 +149,46 @@ public class MessageServiceImpl implements MessageService {
             throw new RuntimeException(e);
         }
     }
+
+    @Override
+    public List<MessageDTO> findByRecipientIdAndSenderId(Integer recipientId, Integer senderId) {
+        try {
+            if (!userRepository.existsById(recipientId))
+                throw new NotFoundException("User not found");
+            List<MessageDTO> listOfMessages = new ArrayList<>();
+            Map<String, List<Segment>> segmentsMap = segmentRepository.findAllByRecipientIdAndSenderId(recipientId, senderId).stream()
+                    .collect(Collectors.groupingBy(Segment::getMessageId));
+            for (List<Segment> segmentsList : segmentsMap.values()) {
+                if (!segmentsList.isEmpty()) {
+                    Segment oneSegment = segmentsList.get(0);
+                    if (segmentsList.size() == oneSegment.getTotalSegments()) {
+                        Collections.sort(segmentsList, Comparator.comparing(Segment::getSegmentNo));
+                        StringBuilder sb = new StringBuilder();
+                        for (int i = 0; i < segmentsList.size(); ++i) {
+                            sb.append(segmentsList.get(i).getContent());
+                        }
+                        String segmentsCombined = sb.toString();
+                        String[] parts = segmentsCombined.split("#");
+                        String base64ivString = parts[0];
+                        String base64SecretKeyString = parts[1];
+                        String actualContent = parts[2];
+                        byte[] secretKeyBytes = CryptoUtil.decryptWithRSAPrivateKey(CryptoUtil.base64DecodeToBytes(base64SecretKeyString), userRepository.getPrivateKeyByUserId(recipientId));
+                        IvParameterSpec iv = new IvParameterSpec(CryptoUtil.base64DecodeToBytes(base64ivString));
+                        SecretKey secretKey = new SecretKeySpec(secretKeyBytes, "AES");
+                        String actualContentDecrypted = CryptoUtil.symmetricDecrypt("AES/CBC/PKCS5Padding", actualContent, secretKey, iv);
+                        MessageDTO messageDTO = new MessageDTO();
+                        messageDTO.setMessageId(oneSegment.getMessageId());
+                        messageDTO.setRecipientId(oneSegment.getRecipientId());
+                        messageDTO.setSenderId(oneSegment.getSenderId());
+                        messageDTO.setContent(actualContentDecrypted);
+                        listOfMessages.add(messageDTO);
+                    }
+                }
+            }
+            return listOfMessages;
+        }
+        catch(Exception e){
+            throw new RuntimeException(e);
+        }
+    }
 }

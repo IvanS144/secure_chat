@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface SegmentRepository extends JpaRepository<Segment, Integer> {
     List<Segment> findAllByRecipientId(Integer recipientId);
+    List<Segment> findAllByRecipientIdAndSenderId(Integer recipientId, Integer senderId);
 }

@@ -10,4 +10,5 @@ public interface MessageService {
     void sendMessage(MessageRequest messageRequest);
     void sendSegmentedMessage(SegmentedMessageRequest messageRequest);
     List<MessageDTO> findMessagesByRecipientId(int recipientId);
+    List<MessageDTO> findByRecipientIdAndSenderId(Integer recipientId, Integer senderId);
 }

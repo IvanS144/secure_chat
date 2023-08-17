@@ -11,7 +11,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/messages")
-@CrossOrigin(origins = "http://localhost:4200", allowCredentials ="true" )
+@CrossOrigin(origins = "http://localhost:4200/", allowCredentials ="true" )
 public class MessageController {
     private final MessageService messageService;
 
@@ -20,8 +20,13 @@ public class MessageController {
     }
 
     @GetMapping("/{id}")
-    public List<MessageDTO> getMessagesByRecipientId(@PathVariable Integer id){
-        return messageService.findMessagesByRecipientId(id);
+    public List<MessageDTO> getMessagesByRecipientId(@PathVariable Integer id, @RequestParam(name="senderId", required = false) Integer senderId){
+        if(senderId == null) {
+            return messageService.findMessagesByRecipientId(id);
+        }
+        else {
+            return messageService.findByRecipientIdAndSenderId(id, senderId);
+        }
     }
 
     @PostMapping
