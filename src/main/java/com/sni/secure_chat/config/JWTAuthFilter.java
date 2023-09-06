@@ -13,6 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import javax.servlet.FilterChain;
@@ -31,6 +32,7 @@ public class JWTAuthFilter extends OncePerRequestFilter {
     private String signingKey;
     private final ModelMapper modelMapper;
     private final UserService userService;
+    private final String[] excludedPatterns = {"/", "index.html", "/css/**", "/js/**", "/assets/*", "/favicon.ico", "/auth/login","/register", "/auth/logout"};
 
     public JWTAuthFilter(ModelMapper modelMapper, UserService userService) {
         this.modelMapper = modelMapper;
@@ -51,8 +53,7 @@ public class JWTAuthFilter extends OncePerRequestFilter {
                     .setSigningKey(signingKey)
                     .parseClaimsJws(token)
                     .getBody();
-            UserDTO u = userService.findUserByUserName(claims.getSubject());
-            ChatUserDetails uDetails = modelMapper.map(u, ChatUserDetails.class);
+            ChatUserDetails uDetails = userService.findUserDetailsByUserName(claims.getSubject());
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(uDetails, null, uDetails.getAuthorities());
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -64,5 +65,16 @@ public class JWTAuthFilter extends OncePerRequestFilter {
         }
         System.out.println("filter");
         filterChain.doFilter(request, response);
+    }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException{
+        String path = request.getServletPath();
+        AntPathMatcher matcher = new AntPathMatcher();
+        for(String pattern : excludedPatterns){
+            if(matcher.match(pattern, path))
+                return true;
+        }
+        return false;
     }
 }

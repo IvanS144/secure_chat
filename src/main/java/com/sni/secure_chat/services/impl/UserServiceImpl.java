@@ -57,4 +57,16 @@ public class UserServiceImpl implements UserService {
     public List<UserDTO> getAll() {
         return userRepository.findAll().stream().map(u -> modelMapper.map(u, UserDTO.class)).toList();
     }
+
+    @Override
+    public UserDTO findById(int userId){
+        User u = userRepository.findById(userId).orElseThrow(()-> new NotFoundException("User not found"));
+        return modelMapper.map(u, UserDTO.class);
+    }
+
+    @Override
+    public ChatUserDetails findUserDetailsByUserName(String userName){
+        User u = userRepository.findByUserName(userName).orElseThrow(() -> new NotFoundException("User not found"));
+        return modelMapper.map(u, ChatUserDetails.class);
+    }
 }

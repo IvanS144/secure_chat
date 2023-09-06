@@ -1,36 +1,33 @@
 package com.sni.secure_chat.services.impl;
 
-import com.fasterxml.jackson.databind.ser.Serializers;
 import com.sni.secure_chat.exceptions.NotFoundException;
 import com.sni.secure_chat.model.dto.UserDTO;
 import com.sni.secure_chat.model.dto.requests.UserRequest;
 import com.sni.secure_chat.model.entities.User;
 import com.sni.secure_chat.repositories.UserRepository;
-import com.sni.secure_chat.services.LoginService;
+import com.sni.secure_chat.services.AuthService;
 import com.sni.secure_chat.util.CryptoUtil;
 import org.modelmapper.ModelMapper;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.transaction.Transactional;
-import java.security.Key;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
-import java.security.PrivateKey;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
 
 @Service
 @Transactional
-public class LoginServiceImpl implements LoginService {
+public class AuthServiceImpl implements AuthService {
+    private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
     private final ModelMapper modelMapper;
     @PersistenceContext
     private EntityManager entityManager;
 
-    public LoginServiceImpl(UserRepository userRepository, ModelMapper modelMapper) {
+    public AuthServiceImpl(PasswordEncoder passwordEncoder, UserRepository userRepository, ModelMapper modelMapper) {
+        this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
         this.modelMapper = modelMapper;
     }
@@ -45,7 +42,7 @@ public class LoginServiceImpl implements LoginService {
         try {
             User u = new User();
             u.setUserName(userRequest.getUserName());
-            u.setPassword(userRequest.getPassword());
+            u.setPassword(passwordEncoder.encode(userRequest.getPassword()));
             KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
             keyPairGenerator.initialize(2048);
             KeyPair keyPair = keyPairGenerator.generateKeyPair();

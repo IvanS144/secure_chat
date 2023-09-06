@@ -4,7 +4,7 @@ import com.sni.secure_chat.model.dto.UserDTO;
 import com.sni.secure_chat.model.dto.requests.LoginRequest;
 import com.sni.secure_chat.model.dto.requests.UserRequest;
 import com.sni.secure_chat.services.JwtService;
-import com.sni.secure_chat.services.LoginService;
+import com.sni.secure_chat.services.AuthService;
 import com.sni.secure_chat.services.UserService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -21,29 +21,34 @@ import javax.validation.Valid;
 
 @RestController
 @CrossOrigin("http://localhost:4200")
-public class LoginController {
-    private final LoginService loginService;
+public class AuthController {
+    private final AuthService authService;
     private final UserService userService;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
 
-    public LoginController(LoginService loginService, UserService userService, AuthenticationManager authenticationManager, JwtService jwtService) {
-        this.loginService = loginService;
+    public AuthController(AuthService authService, UserService userService, AuthenticationManager authenticationManager, JwtService jwtService) {
+        this.authService = authService;
         this.userService = userService;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
     }
 
-    @PostMapping("/login")
-    public ResponseEntity<UserDTO> login(@RequestBody @Valid LoginRequest loginRequest){
-        UserDTO u = loginService.login(loginRequest.getUserName(), loginRequest.getPassword());
-        return ResponseEntity.ok(u);
-    }
+//    @PostMapping("/login")
+//    public ResponseEntity<UserDTO> login(@RequestBody @Valid LoginRequest loginRequest){
+//        UserDTO u = loginService.login(loginRequest.getUserName(), loginRequest.getPassword());
+//        return ResponseEntity.ok(u);
+//    }
 
     @PostMapping("/register")
     public ResponseEntity<UserDTO> register(@RequestBody @Valid UserRequest userRequest){
-        UserDTO u = loginService.register(userRequest);
-        return ResponseEntity.ok(u);
+        UserDTO u = authService.register(userRequest);
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(userRequest.getUserName(), userRequest.getPassword())
+        );
+        String JWT = jwtService.generateToken(u);
+        ResponseCookie cookie = ResponseCookie.from("auth-cookie", JWT).secure(true).httpOnly(true).maxAge(3600).path("/").build();
+        return ResponseEntity.status(HttpStatus.OK).header(HttpHeaders.SET_COOKIE, cookie.toString()).body(u);
     }
 
     @PostMapping("/auth/login")
@@ -53,7 +58,13 @@ public class LoginController {
         );
         UserDTO u = userService.findUserByUserName(loginRequest.getUserName());
         String JWT = jwtService.generateToken(u);
-        ResponseCookie cookie = ResponseCookie.from("auth-cookie", JWT).secure(false).httpOnly(true).maxAge(3600).path("/").build();
+        ResponseCookie cookie = ResponseCookie.from("auth-cookie", JWT).secure(true).httpOnly(true).maxAge(3600).path("/").build();
         return ResponseEntity.status(HttpStatus.OK).header(HttpHeaders.SET_COOKIE, cookie.toString()).body(u);
+    }
+
+    @PostMapping("/auth/logout")
+    public ResponseEntity<String> logout(){
+        ResponseCookie cookie = ResponseCookie.from("auth-cookie","").maxAge(0).path("/").build();
+        return ResponseEntity.status(HttpStatus.OK).header(HttpHeaders.SET_COOKIE, cookie.toString()).body("Logged out");
     }
 }

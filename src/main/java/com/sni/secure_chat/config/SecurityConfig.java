@@ -11,10 +11,12 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 import java.security.SecureRandom;
 
@@ -36,7 +38,7 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder(){
-        return NoOpPasswordEncoder.getInstance();
+        return new BCryptPasswordEncoder();
     }
 
     @Bean
@@ -55,19 +57,24 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-//        http.headers()
-//                .xssProtection();
+        http.headers().contentSecurityPolicy("default-src 'self';" +
+                "script-src 'self';" +
+                "style-src 'self' https://fonts.googleapis.com https://cdn.jsdelivr.net 'unsafe-inline';" +
+                "font-src https://fonts.gstatic.com https://localhost:8443/bootstrap-icons.02685dabe0850e40.woff2 https://localhost:8443/bootstrap-icons.8463cb1e163733b5.woff");
+
 
         http.csrf().disable()
-                .authorizeRequests()
-                .antMatchers("/", "index.html", "/css/**", "/js/**", "/assets/*").permitAll()
-                .antMatchers("/swagger-ui/**","/v2/api-docs/**","/swagger-resources/**").permitAll()
-                .antMatchers(HttpMethod.POST, "/login", "/register", "/auth/login").permitAll()
-                .antMatchers("/messages", "/users","/messages/**", "/users/**")
-                .authenticated()
-                .and()
+                //.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                //.and()
                 .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .and()
+                .authorizeRequests()
+                .antMatchers("/", "index.html", "/css/**", "/js/**", "/assets/*", "/favicon.ico").permitAll()
+                .antMatchers("/swagger-ui/**","/v2/api-docs/**","/swagger-resources/**").permitAll()
+                .antMatchers(HttpMethod.POST, "/register", "/auth/login", "/auth/logout").permitAll()
+                .antMatchers("/messages", "/users","/messages/**", "/users/**")
+                .authenticated()
                 .and()
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(filterJWT, UsernamePasswordAuthenticationFilter.class);

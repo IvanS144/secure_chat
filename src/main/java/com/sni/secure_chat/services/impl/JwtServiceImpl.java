@@ -51,14 +51,14 @@ public class JwtServiceImpl implements JwtService {
     private String generateToken(Map<String, Object> extraClaims, UserDetails userDetails) {
         return Jwts.builder().setClaims(extraClaims).setSubject(userDetails.getUsername())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 24))
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 61))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256).compact();
     }
 
     private String generateToken(Map<String, Object> extraClaims, UserDTO userDTO) {
         return Jwts.builder().setClaims(extraClaims).setSubject(userDTO.getUserName())
                 .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000*60*24))
+                .setExpiration(new Date(System.currentTimeMillis() + 1000*60*61))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256).compact();
     }
 

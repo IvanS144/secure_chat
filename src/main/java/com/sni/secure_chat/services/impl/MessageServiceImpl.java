@@ -1,5 +1,6 @@
 package com.sni.secure_chat.services.impl;
 
+import com.sni.secure_chat.exceptions.BadRequestException;
 import com.sni.secure_chat.exceptions.NotFoundException;
 import com.sni.secure_chat.model.dto.MessageDTO;
 import com.sni.secure_chat.model.dto.MessageSegmentDTO;
@@ -45,6 +46,8 @@ public class MessageServiceImpl implements MessageService {
 
     @Override
     public void sendMessage(MessageRequest messageRequest) {
+        if(Objects.equals(messageRequest.getSenderId(), messageRequest.getRecipientId()))
+            throw new BadRequestException("Message can't be sent to yourself");
         try {
             if(!userRepository.existsById(messageRequest.getRecipientId()))
                 throw new NotFoundException("Nonexistent recipient");
