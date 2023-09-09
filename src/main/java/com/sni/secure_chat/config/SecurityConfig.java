@@ -63,9 +63,10 @@ public class SecurityConfig {
                 "font-src https://fonts.gstatic.com https://localhost:8443/bootstrap-icons.02685dabe0850e40.woff2 https://localhost:8443/bootstrap-icons.8463cb1e163733b5.woff");
 
 
-        http.csrf().disable()
-                //.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                //.and()
+        http.csrf()
+//                .disable()
+                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                .and()
                 .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 .and()
