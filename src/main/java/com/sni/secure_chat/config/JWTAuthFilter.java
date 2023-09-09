@@ -43,7 +43,6 @@ public class JWTAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         String cookieContent =request.getCookies()!=null ? Stream.of(request.getCookies()).filter(cookie->"auth-cookie".equals(cookie.getName())).findFirst().map(Cookie::getValue).orElse(null) : null;
         if (cookieContent == null) {
-            System.out.println("if");
             filterChain.doFilter(request, response);
             return;
         }
@@ -58,12 +57,10 @@ public class JWTAuthFilter extends OncePerRequestFilter {
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (Exception e) {
-            e.printStackTrace();
             //logger.error("JWT Authentication failed from: " + httpServletRequest.getRemoteHost());
             throw new UnauthorizedException("Sesija je istekla");
 
         }
-        System.out.println("filter");
         filterChain.doFilter(request, response);
     }
 

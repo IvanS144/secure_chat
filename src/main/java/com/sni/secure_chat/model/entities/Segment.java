@@ -30,4 +30,7 @@ public class Segment {
     @Basic
     @Column(name="content")
     private String content;
+    @Basic
+    @Column(name="is_read")
+    private Boolean read;
 }

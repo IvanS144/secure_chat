@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import javax.transaction.Transactional;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
 import static com.fasterxml.jackson.databind.type.LogicalType.Map;
 
 @Service
+@Transactional
 public class MessageServiceImpl implements MessageService {
     private final UserRepository userRepository;
     private final SegmentRepository segmentRepository;
@@ -48,9 +50,9 @@ public class MessageServiceImpl implements MessageService {
     public void sendMessage(MessageRequest messageRequest) {
         if(Objects.equals(messageRequest.getSenderId(), messageRequest.getRecipientId()))
             throw new BadRequestException("Message can't be sent to yourself");
+        if(!userRepository.existsById(messageRequest.getRecipientId()))
+            throw new NotFoundException("Nonexistent recipient");
         try {
-            if(!userRepository.existsById(messageRequest.getRecipientId()))
-                throw new NotFoundException("Nonexistent recipient");
             String id = dateTimeFormatter.format(LocalDateTime.now()) + secureRandom.nextInt(9000) + messageRequest.getSenderId();
             String content = messageRequest.getContent();
             //key and iv
@@ -94,28 +96,10 @@ public class MessageServiceImpl implements MessageService {
     }
 
     @Override
-    public void sendSegmentedMessage(SegmentedMessageRequest messageRequest) {
-        String id = dateTimeFormatter.format(LocalDateTime.now()) + secureRandom.nextInt(9000) + messageRequest.getSenderId();
-        for(int i = 0; i<messageRequest.getSegments().size(); ++i){
-            int r = i%4;
-            List<String> segments = messageRequest.getSegments();
-            MessageSegmentDTO dto = new MessageSegmentDTO();
-            dto.setMessageId(id);
-            dto.setSenderId(messageRequest.getSenderId());
-            dto.setRecipientId(messageRequest.getRecipientId());
-            dto.setTotalSegments(segments.size());
-            dto.setSegmentNo(i);
-            dto.setContent(segments.get(i));
-            rabbitTemplate.convertAndSend("exchange", String.valueOf(r+1), dto);
-        }
-
-    }
-
-    @Override
     public List<MessageDTO> findMessagesByRecipientId(int recipientId) {
+        if (!userRepository.existsById(recipientId))
+            throw new NotFoundException("User not found");
         try {
-            if (!userRepository.existsById(recipientId))
-                throw new NotFoundException("User not found");
             List<MessageDTO> listOfMessages = new ArrayList<>();
             Map<String, List<Segment>> segmentsMap = segmentRepository.findAllByRecipientId(recipientId).stream()
                     .collect(Collectors.groupingBy(Segment::getMessageId));
@@ -155,9 +139,9 @@ public class MessageServiceImpl implements MessageService {
 
     @Override
     public List<MessageDTO> findByRecipientIdAndSenderId(Integer recipientId, Integer senderId) {
+        if (!userRepository.existsById(recipientId))
+            throw new NotFoundException("User not found");
         try {
-            if (!userRepository.existsById(recipientId))
-                throw new NotFoundException("User not found");
             List<MessageDTO> listOfMessages = new ArrayList<>();
             Map<String, List<Segment>> segmentsMap = segmentRepository.findAllByRecipientIdAndSenderId(recipientId, senderId).stream()
                     .collect(Collectors.groupingBy(Segment::getMessageId));
@@ -188,6 +172,53 @@ public class MessageServiceImpl implements MessageService {
                     }
                 }
             }
+            return listOfMessages;
+        }
+        catch(Exception e){
+            throw new RuntimeException(e);
+        }
+    }
+
+    public List<MessageDTO> findUnreadByRecipientIdAndSenderId(Integer recipientId, Integer senderId) {
+        if (!userRepository.existsById(recipientId))
+            throw new NotFoundException("User not found");
+        try {
+            List<MessageDTO> listOfMessages = new ArrayList<>();
+//            List<Segment> unreadSegments = new ArrayList<>();
+            Map<String, List<Segment>> segmentsMap = segmentRepository.findAllByRecipientIdAndSenderIdAndReadFalse(recipientId, senderId).stream()
+                    .collect(Collectors.groupingBy(Segment::getMessageId));
+            for (List<Segment> segmentsList : segmentsMap.values()) {
+                if (!segmentsList.isEmpty()) {
+                    Segment oneSegment = segmentsList.get(0);
+                    if (segmentsList.size() == oneSegment.getTotalSegments()) {
+//                        unreadSegments.addAll(segmentsList);
+                        Collections.sort(segmentsList, Comparator.comparing(Segment::getSegmentNo));
+                        StringBuilder sb = new StringBuilder();
+                        for (int i = 0; i < segmentsList.size(); ++i) {
+                            Segment segment = segmentsList.get(i);
+                            segmentRepository.setRead(segment.getSegmentId());
+                            sb.append(segment.getContent());
+                        }
+                        String segmentsCombined = sb.toString();
+                        String[] parts = segmentsCombined.split("#");
+                        String base64ivString = parts[0];
+                        String base64SecretKeyString = parts[1];
+                        String actualContent = parts[2];
+                        byte[] secretKeyBytes = CryptoUtil.decryptWithRSAPrivateKey(CryptoUtil.base64DecodeToBytes(base64SecretKeyString), userRepository.getPrivateKeyByUserId(recipientId));
+                        IvParameterSpec iv = new IvParameterSpec(CryptoUtil.base64DecodeToBytes(base64ivString));
+                        SecretKey secretKey = new SecretKeySpec(secretKeyBytes, "AES");
+                        String actualContentDecrypted = CryptoUtil.symmetricDecrypt("AES/CBC/PKCS5Padding", actualContent, secretKey, iv);
+                        MessageDTO messageDTO = new MessageDTO();
+                        messageDTO.setMessageId(oneSegment.getMessageId());
+                        messageDTO.setRecipientId(oneSegment.getRecipientId());
+                        messageDTO.setSenderId(oneSegment.getSenderId());
+                        messageDTO.setContent(actualContentDecrypted);
+                        listOfMessages.add(messageDTO);
+                    }
+                }
+            }
+//            if(!unreadSegments.isEmpty())
+//                segmentRepository.setRead(unreadSegments.stream().map(Segment::getSegmentId).toList());
             return listOfMessages;
         }
         catch(Exception e){
